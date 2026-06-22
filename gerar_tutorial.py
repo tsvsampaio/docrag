@@ -116,9 +116,13 @@ itens_sumario = [
     ("  5.1", "Sintaxe basica"),
     ("  5.2", "Exemplo de revisao"),
     ("  5.3", "Ferramentas do revisor"),
-    ("6", "Cenarios de Uso"),
-    ("7", "Solucao de Problemas"),
-    ("8", "Referencias"),
+    ("6", "Playground - Interface Web"),
+    ("  6.1", "Iniciando o Playground"),
+    ("  6.2", "Agentes disponiveis"),
+    ("  6.3", "Interagindo com os agentes"),
+    ("7", "Cenarios de Uso"),
+    ("8", "Solucao de Problemas"),
+    ("9", "Referencias"),
 ]
 for num, tit in itens_sumario:
     pdf.cell(0, 6.5, f"  {num}   {tit}", new_x="LMARGIN", new_y="NEXT")
@@ -128,15 +132,21 @@ pdf.add_page()
 pdf.titulo_secao("1", "Introducao")
 pdf.corpo(
     "O docrag e um sistema de RAG (Retrieval-Augmented Generation) que combina "
-    "a documentacao do framework agno com agentes de IA para oferecer dois "
+    "a documentacao do framework agno com agentes de IA para oferecer tres "
     "servicos principais:\n\n"
     "- Agente Expert: consulta a documentacao indexada em uma base vetorial "
     "(ChromaDB) e responde perguntas sobre o framework agno em portugues ou ingles.\n\n"
     "- Agente Revisor: analisa arquivos de codigo Python, executa linter e "
     "formatador, e retorna o codigo corrigido completo.\n\n"
+    "- Agente Tradutor: traduz documentacao Markdown do ingles para o "
+    "portugues brasileiro, preservando blocos de codigo e estrutura.\n\n"
+    "Voce pode interagir com todos os agentes de duas formas:\n\n"
+    "- Pelo terminal (CLI) com comandos simples\n"
+    "- Pelo Playground, uma interface web interativa no navegador\n\n"
     "Os agentes utilizam modelos da OpenAI:\n\n"
     "- Expert: GPT-4o-mini (rapido e economico para consulta a documentacao)\n"
-    "- Revisor: GPT-4o (mais preciso para geracao e correcao de codigo)\n\n"
+    "- Revisor: GPT-4o (mais preciso para geracao e correcao de codigo)\n"
+    "- Tradutor: GPT-4o-mini (otimizado para traducao)\n\n"
     "O embedder text-embedding-3-small e usado para indexacao vetorial."
 )
 
@@ -182,7 +192,10 @@ pdf.nota(
 pdf.subsecao("3.4. Verificar a instalacao")
 pdf.comando("python cli.py --help")
 pdf.corpo("O comando acima deve exibir a lista de subcomandos disponiveis: "
-          "crawl, translate, index, ask e review.")
+          "crawl, translate, index, ask, review e playground.")
+pdf.ln(1)
+pdf.corpo("Voce tambem pode usar o entry point registrado via uv:")
+pdf.comando("uv run docrag --help")
 
 # --- 4. AGENTE EXPERT ---
 pdf.add_page()
@@ -199,8 +212,10 @@ pdf.corpo(
 
 pdf.subsecao("4.1. Sintaxe basica")
 pdf.comando('python cli.py ask "sua pergunta aqui"')
-pdf.corpo("O comando retornara uma resposta formatada em Markdown com "
-          "explicacoes e exemplos de codigo quando relevante.")
+pdf.comando('uv run docrag ask "sua pergunta aqui"')
+pdf.corpo("Ambos os comandos retornam uma resposta formatada em Markdown com "
+          "explicacoes e exemplos de codigo quando relevante. "
+          "Use a forma que preferir.")
 
 pdf.subsecao("4.2. Exemplos de perguntas")
 pdf.corpo("Perguntas em portugues:")
@@ -236,6 +251,7 @@ pdf.corpo(
 
 pdf.subsecao("5.1. Sintaxe basica")
 pdf.comando("python cli.py review caminho/para/arquivo.py")
+pdf.comando("uv run docrag review caminho/para/arquivo.py")
 pdf.corpo("O caminho pode ser absoluto ou relativo ao diretorio do projeto.\n\n"
 "O Revisor utiliza o modelo GPT-4o (modelo completo, nao o mini) para "
 "maior precisao na geracao de codigo corrigido. O Expert continua "
@@ -284,11 +300,94 @@ pdf.nota(
     "instale com: uv pip install ruff"
 )
 
-# --- 6. CENARIOS ---
+# --- 6. PLAYGROUND ---
 pdf.add_page()
-pdf.titulo_secao("6", "Cenarios de Uso")
+pdf.titulo_secao("6", "Playground - Interface Web")
+pdf.corpo(
+    "O Playground e uma interface grafica que roda no navegador, permitindo "
+    "voce conversar com os agentes sem precisar digitar comandos no terminal. "
+    "E ideal para quem prefere uma experiencia visual interativa, similar ao "
+    "ChatGPT, mas com agentes especializados na documentacao do agno.\n\n"
+    "Todos os tres agentes (Expert, Revisor e Tradutor) ficam disponiveis "
+    "na mesma tela. Voce pode alternar entre eles com um clique."
+)
 
-pdf.subsecao("6.1. Aprendendo um novo framework")
+pdf.subsecao("6.1. Iniciando o Playground")
+pdf.corpo("Com o ambiente configurado, execute:")
+pdf.comando("uv run docrag playground")
+pdf.corpo("Apos alguns segundos, voce vera no terminal uma mensagem como:")
+pdf.codigo("Iniciando Playground do agno em http://localhost:7777")
+pdf.corpo("Abra seu navegador e acesse:")
+pdf.comando("http://localhost:7777/playground")
+pdf.ln(2)
+pdf.corpo("Opcoes avancadas:")
+pdf.comando("uv run docrag playground --port 8080")
+pdf.comando("uv run docrag playground --host 0.0.0.0 --port 80")
+pdf.comando("uv run docrag playground --reload")
+pdf.ln(1)
+pdf.corpo(
+    "--port: muda a porta (padrao 7777)\n"
+    "--host: expoe o servidor para outros dispositivos na rede\n"
+    "--reload: reinicia automaticamente ao alterar o codigo (desenvolvimento)"
+)
+
+pdf.subsecao("6.2. Agentes disponiveis no Playground")
+
+# Tabela
+pdf.set_font("Helvetica", "B", 10)
+pdf.set_fill_color(20, 60, 120)
+pdf.set_text_color(255, 255, 255)
+pdf.cell(35, 7, "  Agente", fill=True)
+pdf.cell(30, 7, "  Modelo", fill=True)
+pdf.cell(120, 7, "  Funcao", fill=True)
+pdf.ln(7)
+
+linhas_tabela = [
+    ("  Expert", "  GPT-4o-mini", "  Responde perguntas sobre a documentacao do agno"),
+    ("  Revisor", "  GPT-4o", "  Le e corrige arquivos de codigo Python"),
+    ("  Tradutor", "  GPT-4o-mini", "  Traduz documentos Markdown para PT-BR"),
+]
+for nome, modelo, desc in linhas_tabela:
+    pdf.set_font("Helvetica", "", 9.5)
+    pdf.set_fill_color(245, 245, 250)
+    pdf.set_text_color(30, 30, 30)
+    pdf.cell(35, 6.5, nome, fill=True)
+    pdf.cell(30, 6.5, modelo, fill=True)
+    pdf.cell(120, 6.5, desc, fill=True)
+    pdf.ln(6.5)
+pdf.ln(4)
+
+pdf.subsecao("6.3. Interagindo com os agentes")
+pdf.corpo(
+    "Ao acessar o Playground, voce vera:\n\n"
+    "1. Uma lista dos agentes disponiveis no painel lateral ou no topo\n"
+    "2. Um campo de texto para digitar sua mensagem\n"
+    "3. Uma area de conversa mostrando as respostas\n\n"
+    "Como usar cada agente:\n\n"
+    "EXPERT:\n"
+    '- Digite sua pergunta sobre o agno em portugues ou ingles\n'
+    '  Exemplo: "Como criar um Agent com tools?"\n'
+    "- O agente busca na base vetorial e responde com exemplos\n\n"
+    "REVISOR:\n"
+    '- Informe o caminho do arquivo que deseja revisar\n'
+    '  Exemplo: "Revise o arquivo src/crawler.py"\n'
+    "- O agente le, linta, formata e retorna o codigo corrigido\n\n"
+    "TRADUTOR:\n"
+    '- Cole o texto em ingles que deseja traduzir\n'
+    "  Exemplo: cole um trecho de documentacao em ingles\n"
+    "- O agente traduz para portugues preservando codigo\n"
+)
+
+pdf.nota(
+    "O Playground depende da mesma API Key (OPENAI_API_KEY) ja "
+    "configurada no .env. Certifique-se de que ela esteja valida."
+)
+
+# --- 7. CENARIOS ---
+pdf.add_page()
+pdf.titulo_secao("7", "Cenarios de Uso")
+
+pdf.subsecao("7.1. Aprendendo um novo framework")
 pdf.corpo(
     "Ao iniciar com o framework agno, use o Expert para tirar duvidas "
     "rapidas sem precisar ler toda a documentacao:\n\n"
@@ -297,7 +396,7 @@ pdf.corpo(
     "objetiva com exemplos."
 )
 
-pdf.subsecao("6.2. Code review automatizado")
+pdf.subsecao("7.2. Code review automatizado")
 pdf.corpo(
     "Antes de fazer um commit, revise o codigo com o agente Revisor:\n\n"
     "  python cli.py review src/crawler.py\n\n"
@@ -305,7 +404,7 @@ pdf.corpo(
     "despercebidos e ja entrega o codigo corrigido."
 )
 
-pdf.subsecao("6.3. Documentacao em PT-BR")
+pdf.subsecao("7.3. Documentacao em PT-BR")
 pdf.corpo(
     "A documentacao do agno e integralmente em ingles. O projeto docrag "
     "traduz os 1041 documentos para portugues, permitindo que "
@@ -316,7 +415,7 @@ pdf.corpo(
     "para nao quebrar a sintaxe)."
 )
 
-pdf.subsecao("6.4. Pipeline CI/CD local")
+pdf.subsecao("7.4. Pipeline CI/CD local")
 pdf.corpo(
     "Integre o Revisor em um script de pre-commit:\n\n"
     '  python cli.py review "$@"\n\n'
@@ -324,9 +423,9 @@ pdf.corpo(
     "automatizada antes de ir para o repositorio."
 )
 
-# --- 7. SOLUCAO DE PROBLEMAS ---
+# --- 8. SOLUCAO DE PROBLEMAS ---
 pdf.add_page()
-pdf.titulo_secao("7", "Solucao de Problemas")
+pdf.titulo_secao("8", "Solucao de Problemas")
 
 pdf.subsecao("Problema: OPENAI_API_KEY nao configurada")
 pdf.corpo(
@@ -370,6 +469,23 @@ pdf.corpo(
     "Perguntas curtas ou ambíguas podem ser interpretadas como ingles."
 )
 
+pdf.subsecao("Problema: Playground nao conecta")
+pdf.corpo(
+    "Sintoma: O navegador mostra 'conexao recusada' ao acessar "
+    "http://localhost:7777.\n"
+    "Solucao: Verifique se o servidor esta rodando (olhe o terminal). "
+    "Se estiver rodando em outra porta (ex: 8080), use a porta correta. "
+    "Teste com: curl http://localhost:7777."
+)
+
+pdf.subsecao("Problema: Playground inicia mas nao carrega os agentes")
+pdf.corpo(
+    "Sintoma: O Playground abre mas nao mostra os agentes disponiveis.\n"
+    "Solucao: Verifique os logs no terminal. Pode ser erro de "
+    "autenticacao (OPENAI_API_KEY invalida) ou falha ao conectar no "
+    "ChromaDB. Execute o pipeline de indexacao novamente se necessario."
+)
+
 pdf.subsecao("Problema: Erro de memoria / rate limit")
 pdf.corpo(
     "Sintoma: Resposta truncada ou erro HTTP 429.\n"
@@ -377,14 +493,15 @@ pdf.corpo(
     "Aguarde alguns segundos e tente novamente."
 )
 
-# --- 8. REFERENCIAS ---
-pdf.titulo_secao("8", "Referencias")
+# --- 9. REFERENCIAS ---
+pdf.titulo_secao("9", "Referencias")
 pdf.corpo(
     "- Repositorio do projeto: https://github.com/tsvsampaio/docrag\n"
     "- Documentacao do agno: https://docs.agno.com\n"
     "- Documentacao do ChromaDB: https://docs.trychroma.com\n"
     "- OpenAI API: https://platform.openai.com\n"
     "- Ruff (linter): https://docs.astral.sh/ruff\n"
+    "- agno Playground: https://docs.agno.com/playground\n"
     "- Tutorial gerado em 22/06/2026"
 )
 
