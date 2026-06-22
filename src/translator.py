@@ -4,13 +4,13 @@ import logging
 from pathlib import Path
 
 from agno.agent import Agent
-from agno.models.groq import Groq
+from agno.models.openai import OpenAIChat
 
 logger = logging.getLogger("translator")
 
 AGENTE_TRADUTOR = Agent(
     name="Tradutor",
-    model=Groq(id="llama-3.3-70b-versatile"),
+    model=OpenAIChat(id="gpt-4o-mini"),
     instructions=[
         "Traduza o conteudo abaixo para portugues brasileiro (PT-BR).",
         "Preserve blocos de codigo, comandos e exemplos exatamente como estao.",
@@ -63,7 +63,8 @@ def traduzir_pasta(origem: Path, destino: Path) -> int:
     logger.info("Traduzindo %d arquivos de %s", len(md_files), origem)
     sucessos = 0
     for md in md_files:
-        destino_path = destino / md.name.replace(".md", ".pt-BR.md")
+        nome_pt = (md.name[:-3] if md.name.endswith(".md") else md.name) + ".pt-BR.md"
+        destino_path = destino / nome_pt
         if traduzir_arquivo(md, destino_path):
             sucessos += 1
 

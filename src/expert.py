@@ -4,7 +4,7 @@ import logging
 
 from agno.agent import Agent
 from agno.knowledge.knowledge import Knowledge
-from agno.models.groq import Groq
+from agno.models.openai import OpenAIChat
 from agno.vectordb.chroma import ChromaDb
 
 from src.indexer import CHROMA_DIR
@@ -42,7 +42,7 @@ def criar_agente_expert() -> Agent:
 
     return Agent(
         name="Expert",
-        model=Groq(id="openai/gpt-oss-120b"),
+        model=OpenAIChat(id="gpt-4o-mini"),
         knowledge=knowledge,
         instructions=[
             "Voce e um especialista em agno e desenvolvimento Python.",
@@ -51,7 +51,7 @@ def criar_agente_expert() -> Agent:
             "Se a resposta nao estiver na KB, use seu conhecimento geral.",
             "Sempre formate blocos de codigo com syntax highlighting.",
         ],
-        add_context=True,
+        add_knowledge_to_context=True,
         search_knowledge=True,
         markdown=True,
         debug_mode=False,

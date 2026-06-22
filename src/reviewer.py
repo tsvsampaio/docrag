@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 
 from agno.agent import Agent
-from agno.models.groq import Groq
+from agno.models.openai import OpenAIChat
 from agno.tools import tool
 
 logger = logging.getLogger("reviewer")
@@ -64,7 +64,7 @@ def run_format_check(caminho: str) -> str:
 def criar_agente_revisor() -> Agent:
     return Agent(
         name="Revisor",
-        model=Groq(id="openai/gpt-oss-120b"),
+        model=OpenAIChat(id="gpt-4o-mini"),
         tools=[read_file, run_linter, run_format_check],
         instructions=[
             "Voce e um revisor de codigo Python senior.",
@@ -74,7 +74,6 @@ def criar_agente_revisor() -> Agent:
             "Explique as correcoes de forma concisa.",
             "Sempre retorne o codigo final pronto para copiar.",
         ],
-        add_context=True,
         markdown=True,
         debug_mode=False,
     )

@@ -6,170 +6,84 @@
 
 - Repositorio GitHub: `github.com/tsvsampaio/docrag` (publico)
 - Clone local em `C:\Users\neris\Desktop\Projetos\Depositorio_Caminhos\docrag`
-- Autenticacao `gh auth login` concluida como usuario `tsvsampaio`
 
-### 2. Planejamento em Milestones e Issues
+### 2. Dependencias com uv
 
-Criamos **6 milestones** e **19 issues** no GitHub para rastrear todo o desenvolvimento:
+- Python 3.12.11 em venv gerenciado por `uv`
+- 140+ pacotes instalados via `uv pip install -r requirements.txt`
+- Stack principal: agno 2.x, ChromaDB 1.5+, OpenAI, lxml
 
-| Milestone | Issues | Descricao |
-|-----------|--------|-----------|
-| **M1: Crawl** | #1 a #4 | Baixar llms.txt, crawlear todas as URLs com crawl4ai, salvar como .md |
-| **M2: Traducao PT-BR** | #5 a #7 | Agente Groq que traduz .md → .pt-BR.md preservando codigo |
-| **M3: Indexacao** | #11 a #13 | Carregar .pt-BR.md no ChromaDB via agno Knowledge |
-| **M4: Especialista + CLI** | #14 a #16 | CLI argparse com agente que consulta 2 KB (en + pt) |
-| **M5: Revisor de Codigo** | #8 a #10 | Agente com tools read_file + run_linter, retorna codigo corrigido |
-| **M6: README e Deploy** | #17 a #19 | .gitignore, requirements.txt, README, commit/push final |
+### 3. Crawl — M1
 
-### 3. Implementacao dos Modulos
+- **1041/1041 paginas** baixadas de `https://docs.agno.com/llms.txt`
+- Duas estrategias: `crawl4ai` (se instalado) ou fallback `httpx.AsyncClient` + `lxml`
+- Semaphore(20) para controle de concorrencia
+- Arquivados como `.md` em `data/agno/`
+- Funcao `_normalizar_nome()` usa replace de `/`, `?`, `=` por `_` e garante extensao `.md` unica
+- **Bug corrigido**: extensao `.md.md` duplicada — agora so anexa `.md` se o nome nao terminar em `.md`
 
-```
-docrag/
-├── .gitignore              # Pastas data/, chroma_db/, .env, __pycache__
-├── requirements.txt        # agno[chromadb,openai], groq, chromadb, fastapi, tavily
-├── pyproject.toml          # Configuracao basica do projeto
-├── cli.py                  # Interface CLI com 5 subcomandos
-│
-├── src/
-│   ├── crawler.py          # M1: Baixa llms.txt, crawleia paginas → .md
-│   ├── translator.py       # M2: Agente Groq traduz .md → .pt-BR.md
-│   ├── indexer.py          # M3: LangChain splitter + ChromaDb → Knowledge Base
-│   ├── expert.py           # M4: Agente Expert combina KB en + pt
-│   ├── reviewer.py         # M5: Agente Revisor com read_file + run_linter
-│   └── sites/
-│       └── agno.py         # Plug-in para docs.agno.com
-```
+### 4. Traducao PT-BR — M2
 
-**Detalhamento dos modulos:**
+- **Primeira tentativa**: `Groq`/`llama-3.3-70b-versatile` — rate limit free tier (100k TPD) atingido apos ~30 arquivos
+- **Segunda tentativa**: `OpenAIChat`/`gpt-4o-mini` — sucesso em **1041/1041 arquivos**
+- Preserva blocos de codigo, comandos e estrutura Markdown
+- Salva como `{nome}.pt-BR.md` em `data/agno_pt/`
+- Custo estimado: ~3M tokens (inteiramente no usuario)
+- **Bug corrigido**: nome do arquivo destino usava `.replace(".md", ".pt-BR.md")` que quebrava nomes com `.md` no meio; substituido por `rsplit(".md", 1)`
 
-- **crawler.py** — Funcao assincrona `crawl_agno()` que:
-  1. Faz GET em `https://docs.agno.com/llms.txt`
-  2. Extrai todas as URLs de documentacao
-  3. Crawleia cada pagina com `AsyncWebCrawler` (crawl4ai)
-  4. Salva como `.md` em `data/agno/`
-  5. Pula arquivos ja existentes (retomavel)
+### 5. Indexacao ChromaDB — M3
 
-- **translator.py** — Agente `Tradutor` (Groq/llama-3.3-70b) que:
-  1. Le cada `.md` de `data/agno/`
-  2. Traduz para PT-BR preservando codigo e estrutura Markdown
-  3. Salva como `.pt-BR.md` em `data/agno_pt/`
-  4. Pula traducoes ja existentes
+- **2 colecoes** criadas em `chroma_db/`:
+  - `agno_docs_en` — documentos originais em ingles (1041 arquivos)
+  - `agno_docs_pt` — documentos traduzidos (1041 arquivos)
+- Usa `agno 2.x Knowledge` + `ChromaDb` com embedder OpenAI `text-embedding-3-small`
+- Persistencia local via `persistent_client=True`
 
-- **indexer.py** — Cria 2 colecoes no ChromaDB:
-  - `agno_docs_en` — documentos originais em ingles
-  - `agno_docs_pt` — documentos traduzidos
-  - Usa `RecursiveCharacterTextSplitter` (chunk 2000, overlap 200)
-  - Empacota como `agno 2.x Knowledge` para uso nos agentes
+### 6. Agentes — M4 e M5
 
-- **expert.py** — Agente `Expert` (Groq/openai-gpt-oss-120b) que:
-  - Carrega as duas knowledge bases do ChromaDB
-  - Combina com operador `+`
-  - Detecta idioma da pergunta e responde no mesmo idioma
-  - Prefere KB em portugues para perguntas PT-BR
+#### Expert Agent (M4)
+- `OpenAIChat("gpt-4o-mini")` + Knowledge combinada (prioriza PT-BR)
+- `add_knowledge_to_context=True` em vez do antigo `add_context`
+- Detecta idioma da pergunta e responde no mesmo idioma
+- **Testado apos correcao** — respondeu corretamente sobre "O que e agno e como criar um agente?"
 
-- **reviewer.py** — Agente `Revisor` com 3 ferramentas:
+#### Reviewer Agent (M5)
+- `OpenAIChat("gpt-4o-mini")` com 3 tools:
   - `read_file(caminho)` — le arquivo de codigo
   - `run_linter(caminho)` — executa `ruff check`
   - `run_format_check(caminho)` — executa `ruff format --check`
-  - Instrucao principal: retornar o **codigo corrigido completo**
+- Instrucao principal: retornar o **codigo corrigido completo**
+- Corrigido para usar `OpenAIChat` (estava `Groq`)
 
-- **cli.py** — 5 subcomandos argparse:
-  - `crawl --site agno` — crawlear documentacao
-  - `translate` — traduzir para PT-BR
-  - `index [--limpar]` — indexar no ChromaDB
-  - `ask <pergunta>` — perguntar ao especialista
-  - `review <arquivo>` — revisar codigo
+### 7. CLI
 
-### 4. Decisoes de Arquitetura
-
-| Decisao | Alternativa | Escolha | Motivo |
-|---------|-------------|---------|--------|
-| Formato de saida do crawl | .txt | **.md** | Preserva estrutura para chunking |
-| Colecoes ChromaDB | Unica | **Duas (en + pt)** | Isolamento entre idiomas |
-| Agente tradutor | Script local | **Agno Agent (Groq)** | Reaproveita infra existente |
-| CLI vs pacote | pip install | **Script direto** | Simplicidade, sem build |
-| Nomenclatura | CamelCase | **snake_case pt-BR** | Consistencia com automacao-fiscal |
-
-### 5. Convencoes do Codigo
-
-- `from __future__ import annotations` em todos os arquivos
-- Logging com `logging.getLogger(__name__)` (logger por modulo)
-- Codigo e comentarios em portugues
-- Variaveis e funcoes em snake_case
-- CLI via `argparse` com `subparsers` (mesmo padrao de `automacao-fiscal`)
-- `dotenv.load_dotenv()` chamado no entrypoint (`cli.py`)
-
----
-
-## Proximos Passos (Futuro)
-
-### Curto Prazo
-
-1. **Testar o pipeline completo**
-   - `python cli.py crawl --site agno`
-   - `python cli.py translate`
-   - `python cli.py index`
-   - `python cli.py ask "O que e um Agent?"`
-   - `python cli.py review cli.py`
-
-2. **Adicionar mais sites**
-   - FastAPI (`https://fastapi.tiangolo.com/llms.txt`)
-   - SQLAlchemy (`https://docs.sqlalchemy.org/llms.txt`)
-   - LangChain
-   - Cada site vira um arquivo em `src/sites/` com funcao `crawl()`
-
-3. **Testes automatizados**
-   - Testes unitarios para cada modulo (`tests/`)
-   - Mock do `AsyncWebCrawler` para testes de crawler
-   - Mock da API Groq para testes de traducao
-
-### Medio Prazo
-
-4. **Deploy como servico**
-   - API FastAPI com endpoints: `/crawl`, `/translate`, `/index`, `/ask`, `/review`
-   - Frontend Streamlit para interface web
-   - Agendamento automatico de crawl (semanal)
-
-5. **Melhorias nos agentes**
-   - Cache de respostas frequentes
-   - Suporte a multiplos modelos (via config)
-   - Feedback loop: usuario avalia resposta, sistema ajusta
-
-6. **CI/CD**
-   - GitHub Actions para lint + testes
-   - Deploy automatico em VPS ou Railway
-
-### Longo Prazo
-
-7. **RAG multi-site inteligente**
-   - Agente decide qual site consultar baseado na pergunta
-   - Indexacao incremental (apenas paginas modificadas)
-   - Suporte a PDFs e video transcripts
-
-8. **Modo offline**
-   - Cache local de modelos (Groq -> LLM local via Ollama)
-   - ChromaDB persistente totalmente offline
-
----
+```bash
+python cli.py crawl --site agno   # M1
+python cli.py translate           # M2
+python cli.py index               # M3
+python cli.py ask "pergunta"      # M4
+python cli.py review arquivo.py   # M5
+```
 
 ## Arquitetura (Diagrama Textual)
 
 ```
 ┌──────────┐    ┌───────────┐    ┌──────────┐    ┌───────────┐
 │   Site   │───>│  Crawler  │───>│  .md en  │───>│ Translator │
-│ llms.txt │    │ crawl4ai  │    │ data/agno│    │  Groq LLM  │
-└──────────┘    └───────────┘    └──────────┘    └───────────┘
-                                                       │
-                                                       ▼
-                                               ┌───────────┐
-                                               │ .pt-BR.md │
-                                               │data/agno_pt│
-                                               └───────────┘
-                                                       │
-                                                       ▼
+│ llms.txt │    │ httpx+crawl│    │ data/agno│    │  gpt-4o-   │
+└──────────┘    └───────────┘    └──────────┘    │   mini     │
+                                                  └───────────┘
+                                                        │
+                                                        ▼
+                                                ┌───────────┐
+                                                │ .pt-BR.md │
+                                                │data/agno_pt│
+                                                └───────────┘
+                                                        │
+                                                        ▼
 ┌──────────┐    ┌───────────┐    ┌──────────────────────────┐
 │  Usuario │<───│  Agente   │<───│  ChromaDB (en + pt)      │
-│  CLI/Web │    │ Expert    │    │  agno 2.x Knowledge       │
+│  CLI     │    │ Expert    │    │  agno 2.x Knowledge       │
 └──────────┘    └───────────┘    └──────────────────────────┘
 
 ┌──────────┐    ┌───────────┐
@@ -178,81 +92,58 @@ docrag/
 └──────────┘    └───────────┘
 ```
 
----
+## Decisoes de Arquitetura
 
-## Atualizacao para agno 2.x (22/06/2026)
+| Decisao | Alternativa | Escolha | Motivo |
+|---------|-------------|---------|--------|
+| LLM | Groq llama-3.3-70b | **OpenAI GPT-4o-mini** | Rate limit Groq free tier inviavel |
+| Crawler | So crawl4ai | **httpx + fallback lxml** | Evita dependencia pesada de Playwright |
+| Colecoes ChromaDB | Unica | **Duas (en + pt)** | Isolamento entre idiomas |
+| CLI vs pacote | pip install | **Script direto** | Simplicidade, sem build |
+| Nomenclatura | CamelCase | **snake_case pt-BR** | Consistencia com automacao-fiscal |
 
-### Mudancas
+## Convencoes do Codigo
 
-| Antes | Depois |
-|-------|--------|
-| `agno==1.0.4` | `agno[chromadb,openai]>=2.6.18` |
-| `LangChainKnowledge` | `Knowledge` (`agno.knowledge.knowledge`) |
-| `RecursiveCharacterTextSplitter` | Chunker nativo do agno |
-| `crawl4ai` obrigatorio | crawl4ai opcional (fallback httpx) |
-| `chromadb==0.6.3` | `chromadb>=1.5.9` |
-| `pip` | `uv` (recomendado) |
+- `from __future__ import annotations` em todos os arquivos
+- Logging com `logging.getLogger(__name__)` (logger por modulo)
+- Codigo e comentarios em portugues
+- Variaveis e funcoes em snake_case
+- CLI via `argparse` com `subparsers`
+- `dotenv.load_dotenv()` chamado no entrypoint (`cli.py`)
 
-### Novo pipeline de dependencias
+## Proximos Passos (Futuro)
 
-```toml
-dependencies = [
-    "agno[chromadb,openai]>=2.6.18",
-    "chromadb>=1.5.9",
-    "fastapi>=0.123.10",
-    "groq>=1.4.0",
-    "ipykernel>=7.3.0",
-    "onnxruntime<1.24",
-    "openai>=2.43.0",
-    "pypdf>=6.13.3",
-    "python-dotenv>=1.2.1",
-    "sqlalchemy>=2.0.51",
-    "tavily-python>=0.7.26",
-    "uvicorn>=0.38.0",
-    "yfinance>=1.4.1",
-]
-```
+### Curto Prazo
 
-### agno 2.x Knowledge API
+1. **Testar o agente Revisor** com `python cli.py review cli.py`
+2. **Adicionar mais sites** — FastAPI, SQLAlchemy, LangChain
+3. **Testes automatizados** — `tests/` com mocks
 
-```python
-from agno.knowledge.knowledge import Knowledge
-from agno.vectordb.chroma import ChromaDb
+### Medio Prazo
 
-vector_db = ChromaDb(
-    collection="agno_docs_pt",
-    path="chroma_db",
-    persistent_client=True,
-)
-knowledge = Knowledge(name="PT-BR", vector_db=vector_db)
-knowledge.insert(path="data/agno_pt/")  # auto-detects .md files
+4. **Deploy como servico** — FastAPI + frontend Streamlit
+5. **Melhorias nos agentes** — cache, multi-modelo, feedback loop
+6. **CI/CD** — GitHub Actions
 
-agent = Agent(
-    model=Groq(id="openai/gpt-oss-120b"),
-    knowledge=knowledge,
-    search_knowledge=True,
-)
-```
+### Longo Prazo
 
-### Variaveis de ambiente
+7. **RAG multi-site inteligente** — agente decide qual site consultar
+8. **Modo offline** — Ollama + ChromaDB local
+
+## Variaveis de Ambiente
 
 ```bash
-GROQ_API_KEY=gsk_xxx       # obrigatorio
-OPENAI_API_KEY=sk-xxx      # embedder padrao
-TAVILY_API_KEY=tvly-xxx    # busca web (opcional)
+OPENAI_API_KEY=sk-xxx       # obrigatorio (embedder + LLM)
+TAVILY_API_KEY=tvly-xxx     # busca web (opcional)
 ```
-
----
 
 ## Repositorio
 
 - **URL:** `https://github.com/tsvsampaio/docrag`
-- **Issues:** 19 criadas, distribuidas em 6 milestones
-- **Milestones:** https://github.com/tsvsampaio/docrag/milestones
+- **Status:** Pipeline completo executado e testado
 
 ## Referencias
 
 - [agno docs](https://docs.agno.com)
 - [ChromaDB](https://docs.trychroma.com)
-- [crawl4ai](https://docs.crawl4ai.com)
-- [Groq](https://console.groq.com)
+- [OpenAI](https://platform.openai.com)

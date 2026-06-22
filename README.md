@@ -1,14 +1,23 @@
 # docrag
 
-RAG sobre documentacao de frameworks Python, com suporte a multiplos sites, traducao PT-BR e agente revisor de codigo.
+RAG sobre documentacao de frameworks Python, com traducao PT-BR e agente revisor de codigo.
 
 ## Stack
 
 - **agno 2.x** — agentes com knowledge base + ferramentas
 - **ChromaDB 1.5+** — vector store local
-- **Groq** — inferencia LLM
-- **OpenAI** — embedder
-- **Tavily** — busca web
+- **OpenAI GPT-4o-mini** — LLM principal
+- **OpenAI text-embedding-3-small** — embedder
+
+## Resultados
+
+| Pipeline | Status | Detalhes |
+|----------|--------|----------|
+| Crawl | 1041/1041 paginas | docs.agno.com via httpx + lxml |
+| Traducao PT-BR | 1041/1041 arquivos | GPT-4o-mini |
+| Indexacao ChromaDB | 2 colecoes | `agno_docs_en` + `agno_docs_pt` |
+| Expert Agent | Testado | Responde com base na KB |
+| Reviewer Agent | Pronto | Le, linta e corrige codigo |
 
 ## Fluxo
 
@@ -42,13 +51,12 @@ uv venv --python 3.12
 .venv\Scripts\activate
 uv pip install -r requirements.txt
 copy .env.example .env
-# Edite .env com GROQ_API_KEY e OPENAI_API_KEY
+# Edite .env com OPENAI_API_KEY
 ```
 
 ## Variaveis de Ambiente
 
 ```
-GROQ_API_KEY=gsk_xxx       # obrigatorio
-OPENAI_API_KEY=sk-xxx      # embedder padrao
+OPENAI_API_KEY=sk-xxx      # obrigatorio (embedder + LLM)
 TAVILY_API_KEY=tvly-xxx    # busca web (opcional)
 ```
