@@ -61,15 +61,31 @@ def run_format_check(caminho: str) -> str:
         return f"Erro ao verificar formatacao: {e}"
 
 
+@tool(show_result=True)
+def run_syntax_check(caminho: str) -> str:
+    """Verifica se o codigo Python tem erros de sintaxe sem executa-lo."""
+    path = Path(caminho)
+    if not path.exists():
+        return f"Erro: arquivo nao encontrado: {caminho}"
+    try:
+        codigo_fonte = path.read_text(encoding="utf-8")
+        compile(codigo_fonte, str(path), "exec")
+        return "Nenhum erro de sintaxe encontrado."
+    except SyntaxError as e:
+        return f"Erro de sintaxe: {e}"
+    except Exception as e:
+        return f"Erro ao analisar sintaxe: {e}"
+
+
 def criar_agente_revisor() -> Agent:
     return Agent(
         name="Revisor",
-        model=OpenAIChat(id="gpt-4o-mini"),
-        tools=[read_file, run_linter, run_format_check],
+        model=OpenAIChat(id="gpt-4o"),
+        tools=[read_file, run_linter, run_format_check, run_syntax_check],
         instructions=[
             "Voce e um revisor de codigo Python senior.",
             "Leia o arquivo, analise o codigo, e sugira melhorias.",
-            "Apos analisar, execute o linter e formatador para verificar problemas.",
+            "Apos analisar, execute o linter, formatador e syntax check para verificar problemas.",
             "Apresente o CODIGO CORRIGIDO completo (nao apenas trechos ou sugestoes).",
             "Explique as correcoes de forma concisa.",
             "Sempre retorne o codigo final pronto para copiar.",
