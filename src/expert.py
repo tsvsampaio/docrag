@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import logging
+
 from agno.agent import Agent
-from agno.knowledge.langchain import LangChainKnowledge
+from agno.knowledge.knowledge import Knowledge
 from agno.models.groq import Groq
 from agno.vectordb.chroma import ChromaDb
 
@@ -17,30 +18,27 @@ _IDIOMA_INSTRUCAO = """Preferencia de idioma:
 - Inclua exemplos de codigo sempre que relevante."""
 
 
-def _carregar_kb(nome: str) -> LangChainKnowledge | None:
-    chroma = ChromaDb(
-        collection=nome,
-        path=str(CHROMA_DIR),
-    )
-
-    knowledge = LangChainKnowledge(
-        vector_db=chroma,
-        num_documents=5,
-    )
-    return knowledge
+def _carregar_kb(nome: str) -> Knowledge | None:
+    try:
+        vector_db = ChromaDb(
+            collection=nome,
+            path=str(CHROMA_DIR),
+            persistent_client=True,
+        )
+        return Knowledge(
+            name=nome,
+            vector_db=vector_db,
+        )
+    except Exception as e:
+        logger.warning("Erro ao carregar KB '%s': %s", nome, e)
+        return None
 
 
 def criar_agente_expert() -> Agent:
-    kb_en = _carregar_kb("agno_docs_en")
     kb_pt = _carregar_kb("agno_docs_pt")
+    kb_en = _carregar_kb("agno_docs_en")
 
-    knowledge = None
-    if kb_en and kb_pt:
-        knowledge = kb_en + kb_pt
-    elif kb_en:
-        knowledge = kb_en
-    elif kb_pt:
-        knowledge = kb_pt
+    knowledge = kb_pt or kb_en
 
     return Agent(
         name="Expert",

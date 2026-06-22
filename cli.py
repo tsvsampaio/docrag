@@ -44,7 +44,7 @@ def cmd_translate(args: argparse.Namespace) -> None:
 def cmd_index(args: argparse.Namespace) -> None:
     from src.indexer import indexar_tudo
 
-    bases = indexar_tudo(limpar=args.limpar)
+    bases = indexar_tudo()
     for nome, kb in bases.items():
         if kb:
             logger.info("OK: %s", nome)
@@ -99,11 +99,6 @@ def main() -> None:
     p_translate.set_defaults(func=cmd_translate)
 
     p_index = sub.add_parser("index", help="Indexar docs traduzidas no ChromaDB")
-    p_index.add_argument(
-        "--limpar",
-        action="store_true",
-        help="Recriar colecoes do zero",
-    )
     p_index.set_defaults(func=cmd_index)
 
     p_ask = sub.add_parser("ask", help="Perguntar ao agente especialista")

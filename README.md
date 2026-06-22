@@ -4,17 +4,16 @@ RAG sobre documentacao de frameworks Python, com suporte a multiplos sites, trad
 
 ## Stack
 
-- **agno** — agentes com knowledge base + ferramentas
-- **ChromaDB** — vector store local
-- **Groq** — inferencia LLM (llama-3.3-70b / openai/gpt-oss-120b)
-- **crawl4ai** — crawler assincrono de documentacao
-- **LangChain** — text splitters
+- **agno 2.x** — agentes com knowledge base + ferramentas
+- **ChromaDB 1.5+** — vector store local
+- **Groq** — inferencia LLM
+- **OpenAI** — embedder
+- **Tavily** — busca web
 
 ## Fluxo
 
 ```
 crawl  →  translate  →  index  →  ask / review
-  M1          M2           M3         M4 / M5
 ```
 
 ## Comandos
@@ -36,31 +35,20 @@ python cli.py ask "Como criar um Agent no agno?"
 python cli.py review src/crawler.py
 ```
 
-## Setup
+## Setup rapido
 
 ```bash
-pip install -r requirements.txt
+uv venv --python 3.12
+.venv\Scripts\activate
+uv pip install -r requirements.txt
+copy .env.example .env
+# Edite .env com GROQ_API_KEY e OPENAI_API_KEY
 ```
 
-Crie um arquivo `.env`:
+## Variaveis de Ambiente
 
 ```
-GROQ_API_KEY=sua_chave_aqui
+GROQ_API_KEY=gsk_xxx       # obrigatorio
+OPENAI_API_KEY=sk-xxx      # embedder padrao
+TAVILY_API_KEY=tvly-xxx    # busca web (opcional)
 ```
-
-## Milestones
-
-| Marco | Descricao | Status |
-|-------|-----------|--------|
-| M1 | Crawl — Extrair documentacao | Feito |
-| M2 | Traducao PT-BR | Feito |
-| M3 | Indexacao ChromaDB | Feito |
-| M4 | Agente Especialista + CLI | Feito |
-| M5 | Agente Revisor de Codigo | Feito |
-| M6 | README e Deploy | Feito |
-
-## Proximos Passos
-
-- Suporte a mais sites (FastAPI, SQLAlchemy, etc.)
-- Testes automatizados
-- Deploy como servico (API FastAPI + frontend Streamlit)

@@ -4,10 +4,24 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "docrag"
-version = "0.1.0"
-description = "RAG sobre documentação PT-BR — agno + ChromaDB + Groq"
+version = "0.2.0"
+description = "RAG sobre documentacao PT-BR — agno 2.x + ChromaDB + Groq"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "agno[chromadb,openai]>=2.6.18",
+    "chromadb>=1.5.9",
+    "fastapi>=0.123.10",
+    "groq>=1.4.0",
+    "ipykernel>=7.3.0",
+    "onnxruntime<1.24",
+    "openai>=2.43.0",
+    "pypdf>=6.13.3",
+    "python-dotenv>=1.2.1",
+    "sqlalchemy>=2.0.51",
+    "tavily-python>=0.7.26",
+    "uvicorn>=0.38.0",
+    "yfinance>=1.4.1",
+]
 
 [tool.setuptools]
 packages = ["src", "src.sites"]

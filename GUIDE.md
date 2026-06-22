@@ -26,7 +26,7 @@ Criamos **6 milestones** e **19 issues** no GitHub para rastrear todo o desenvol
 ```
 docrag/
 ├── .gitignore              # Pastas data/, chroma_db/, .env, __pycache__
-├── requirements.txt        # agno, crawl4ai, groq, chromadb, langchain, httpx
+├── requirements.txt        # agno[chromadb,openai], groq, chromadb, fastapi, tavily
 ├── pyproject.toml          # Configuracao basica do projeto
 ├── cli.py                  # Interface CLI com 5 subcomandos
 │
@@ -59,7 +59,7 @@ docrag/
   - `agno_docs_en` — documentos originais em ingles
   - `agno_docs_pt` — documentos traduzidos
   - Usa `RecursiveCharacterTextSplitter` (chunk 2000, overlap 200)
-  - Empacota como `LangChainKnowledge` para uso nos agentes
+  - Empacota como `agno 2.x Knowledge` para uso nos agentes
 
 - **expert.py** — Agente `Expert` (Groq/openai-gpt-oss-120b) que:
   - Carrega as duas knowledge bases do ChromaDB
@@ -169,13 +169,77 @@ docrag/
                                                        ▼
 ┌──────────┐    ┌───────────┐    ┌──────────────────────────┐
 │  Usuario │<───│  Agente   │<───│  ChromaDB (en + pt)      │
-│  CLI/Web │    │ Expert    │    │  LangChainKnowledge       │
+│  CLI/Web │    │ Expert    │    │  agno 2.x Knowledge       │
 └──────────┘    └───────────┘    └──────────────────────────┘
 
 ┌──────────┐    ┌───────────┐
 │  Arquivo │───>│  Revisor  │───> Codigo corrigido
 │  .py     │    │ + linter  │
 └──────────┘    └───────────┘
+```
+
+---
+
+## Atualizacao para agno 2.x (22/06/2026)
+
+### Mudancas
+
+| Antes | Depois |
+|-------|--------|
+| `agno==1.0.4` | `agno[chromadb,openai]>=2.6.18` |
+| `LangChainKnowledge` | `Knowledge` (`agno.knowledge.knowledge`) |
+| `RecursiveCharacterTextSplitter` | Chunker nativo do agno |
+| `crawl4ai` obrigatorio | crawl4ai opcional (fallback httpx) |
+| `chromadb==0.6.3` | `chromadb>=1.5.9` |
+| `pip` | `uv` (recomendado) |
+
+### Novo pipeline de dependencias
+
+```toml
+dependencies = [
+    "agno[chromadb,openai]>=2.6.18",
+    "chromadb>=1.5.9",
+    "fastapi>=0.123.10",
+    "groq>=1.4.0",
+    "ipykernel>=7.3.0",
+    "onnxruntime<1.24",
+    "openai>=2.43.0",
+    "pypdf>=6.13.3",
+    "python-dotenv>=1.2.1",
+    "sqlalchemy>=2.0.51",
+    "tavily-python>=0.7.26",
+    "uvicorn>=0.38.0",
+    "yfinance>=1.4.1",
+]
+```
+
+### agno 2.x Knowledge API
+
+```python
+from agno.knowledge.knowledge import Knowledge
+from agno.vectordb.chroma import ChromaDb
+
+vector_db = ChromaDb(
+    collection="agno_docs_pt",
+    path="chroma_db",
+    persistent_client=True,
+)
+knowledge = Knowledge(name="PT-BR", vector_db=vector_db)
+knowledge.insert(path="data/agno_pt/")  # auto-detects .md files
+
+agent = Agent(
+    model=Groq(id="openai/gpt-oss-120b"),
+    knowledge=knowledge,
+    search_knowledge=True,
+)
+```
+
+### Variaveis de ambiente
+
+```bash
+GROQ_API_KEY=gsk_xxx       # obrigatorio
+OPENAI_API_KEY=sk-xxx      # embedder padrao
+TAVILY_API_KEY=tvly-xxx    # busca web (opcional)
 ```
 
 ---
