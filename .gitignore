@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.env
+venv/
+.venv/
+*.log
+*.egg-info/
+
+# Dados baixados / gerados
+data/
+chroma_db/
+
+# Ambiente
+.groq
