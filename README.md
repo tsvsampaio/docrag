@@ -28,21 +28,37 @@ crawl  →  translate  →  index  →  ask / review
 ## Comandos
 
 ```bash
-# 1. Crawlear documentacao
+# Via python direto
 python cli.py crawl --site agno
-
-# 2. Traduzir para PT-BR
 python cli.py translate
-
-# 3. Indexar no ChromaDB
 python cli.py index
-
-# 4. Perguntar ao especialista
 python cli.py ask "Como criar um Agent no agno?"
-
-# 5. Revisar codigo
 python cli.py review src/crawler.py
+
+# Via uv run (entry points registrados)
+uv run docrag crawl --site agno
+uv run docrag translate
+uv run docrag index
+uv run docrag ask "Como criar um Agent no agno?"
+uv run docrag review src/crawler.py
 ```
+
+## Playground (Web UI)
+
+Interface grafica interativa para conversar com os agentes no navegador.
+
+```bash
+uv run docrag playground
+# Acessar: http://localhost:7777/playground
+```
+
+### Agentes Disponiveis
+
+| Agente | Funcao |
+|--------|--------|
+| **Expert** | RAG sobre documentacao agno (PT-BR + EN) |
+| **Revisor** | Le, linta e corrige codigo Python |
+| **Tradutor** | Traduz Markdown para PT-BR |
 
 ## Setup rapido
 

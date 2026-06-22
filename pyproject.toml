@@ -23,6 +23,10 @@ dependencies = [
     "yfinance>=1.4.1",
 ]
 
+[project.scripts]
+docrag = "src.cli:main"
+docrag-playground = "src.playground_app:app"
+
 [tool.setuptools]
 packages = ["src", "src.sites"]
 

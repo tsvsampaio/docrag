@@ -58,12 +58,53 @@
 ### 7. CLI
 
 ```bash
+# Via python direto
 python cli.py crawl --site agno   # M1
 python cli.py translate           # M2
 python cli.py index               # M3
 python cli.py ask "pergunta"      # M4
 python cli.py review arquivo.py   # M5
+
+# Via uv run (entry point registrado no pyproject.toml)
+uv run docrag crawl --site agno
+uv run docrag translate
+uv run docrag index
+uv run docrag ask "pergunta"
+uv run docrag review arquivo.py
 ```
+
+### 8. Playground (Web UI)
+
+O **agno playground** oferece uma interface web interativa para conversar com os agentes.
+
+```bash
+# Iniciar o playground
+uv run docrag playground
+# ou: uv run docrag-playground
+
+# Opcoes:
+uv run docrag playground --port 7777              # porta personalizada
+uv run docrag playground --host 0.0.0.0 --port 80 # expor na rede
+uv run docrag playground --reload                 # auto-reload em dev
+```
+
+Acessar no navegador: `http://localhost:7777/playground`
+
+#### Agentes Disponiveis no Playground
+
+| Agente | Nome | Modelo | Funcao |
+|--------|------|--------|--------|
+| **Expert** | `Expert` | GPT-4o-mini | RAG sobre documentacao agno (PT-BR + EN) |
+| **Revisor** | `Revisor` | GPT-4o | Le, linta (`ruff`), formata e corrige codigo Python |
+| **Tradutor** | `Tradutor` | GPT-4o-mini | Traduz documentacao Markdown para PT-BR |
+
+#### Arquivos do Playground
+
+| Arquivo | Descricao |
+|---------|-----------|
+| `src/playground_app.py` | Cria o app FastAPI com `AgentOS` expondo os 3 agentes |
+| `src/cli.py` | Comando `playground` com `--host`, `--port`, `--reload` |
+| `pyproject.toml` | Entry points `docrag` e `docrag-playground` |
 
 ## Arquitetura (Diagrama Textual)
 
@@ -99,7 +140,7 @@ python cli.py review arquivo.py   # M5
 | LLM | Groq llama-3.3-70b | **OpenAI GPT-4o-mini** | Rate limit Groq free tier inviavel |
 | Crawler | So crawl4ai | **httpx + fallback lxml** | Evita dependencia pesada de Playwright |
 | Colecoes ChromaDB | Unica | **Duas (en + pt)** | Isolamento entre idiomas |
-| CLI vs pacote | pip install | **Script direto** | Simplicidade, sem build |
+| CLI vs pacote | pip install | **Script direto + entry points** | `uv run docrag <cmd>` via `pyproject.toml` |
 | Nomenclatura | CamelCase | **snake_case pt-BR** | Consistencia com automacao-fiscal |
 
 ## Convencoes do Codigo
@@ -115,13 +156,13 @@ python cli.py review arquivo.py   # M5
 
 ### Curto Prazo
 
-1. **Testar o agente Revisor** com `python cli.py review cli.py`
+1. **Testar o agente Revisor** com `uv run docrag review src/cli.py`
 2. **Adicionar mais sites** — FastAPI, SQLAlchemy, LangChain
 3. **Testes automatizados** — `tests/` com mocks
 
 ### Medio Prazo
 
-4. **Deploy como servico** — FastAPI + frontend Streamlit
+4. ~~**Deploy como servico**~~ — **Concluido**: Playground agno via `uv run docrag playground`
 5. **Melhorias nos agentes** — cache, multi-modelo, feedback loop
 6. **CI/CD** — GitHub Actions
 
