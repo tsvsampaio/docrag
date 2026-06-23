@@ -53,12 +53,22 @@ def cmd_index(args: argparse.Namespace) -> None:
 
 
 def cmd_ask(args: argparse.Namespace) -> None:
+    import time as time_module
+
+    t0 = time_module.time()
+    logger.info("Carregando agente Expert...")
     from src.expert import criar_agente_expert
 
     agente = criar_agente_expert()
+    logger.info("Agente carregado em %.1fs", time_module.time() - t0)
+
     pergunta = " ".join(args.pergunta)
     logger.info("Pergunta: %s", pergunta)
+
+    logger.info("Consultando base de conhecimento e LLM...")
     resposta = agente.run(pergunta)
+    logger.info("Resposta recebida em %.1fs", time_module.time() - t0)
+
     print()
     print(resposta.content if hasattr(resposta, "content") else resposta)
     print()
@@ -77,16 +87,25 @@ def cmd_playground(args: argparse.Namespace) -> None:
 
 
 def cmd_review(args: argparse.Namespace) -> None:
-    from src.reviewer import criar_agente_revisor
+    import time as time_module
 
     caminho = Path(args.arquivo).resolve()
     if not caminho.exists():
         logger.error("Arquivo nao encontrado: %s", caminho)
         sys.exit(1)
 
+    t0 = time_module.time()
+    logger.info("Carregando agente Revisor...")
+    from src.reviewer import criar_agente_revisor
+
     agente = criar_agente_revisor()
+    logger.info("Agente carregado em %.1fs", time_module.time() - t0)
+
+    logger.info("Revisando %s...", caminho)
     prompt = f"Revise o arquivo: {caminho}\n\nLeia o codigo, analise, execute linter e apresente o codigo corrigido."
     resposta = agente.run(prompt)
+    logger.info("Revisao recebida em %.1fs", time_module.time() - t0)
+
     print()
     print(resposta.content if hasattr(resposta, "content") else resposta)
     print()
